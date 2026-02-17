@@ -10,12 +10,28 @@ app.get('/', (req, res) => {
   res.send('API da Camara funcionando');
 });
 
-app.get('/usuarios', async (req, res) => {
-  const result = await pool.query('SELECT * FROM usuarios');
-  res.json(result.rows);
+// LOGIN
+app.post('/login', async (req, res) => {
+  const { login, senha } = req.body;
+
+  try {
+    const result = await pool.query(
+      'SELECT * FROM usuarios WHERE login = $1 AND senha_hash = $2',
+      [login, senha]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(401).json({ erro: 'Login inválido' });
+    }
+
+    res.json({ usuario: result.rows[0] });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ erro: 'Erro no servidor' });
+  }
 });
 
-// REGISTRAR VOTO COM VERIFICAÇÃO DE STATUS
+// VOTAR
 app.post('/votar', async (req, res) => {
   const { vereador_id, materia_id, opcao } = req.body;
 
@@ -49,7 +65,7 @@ app.get('/resultado', async (req, res) => {
         COALESCE(SUM(CASE WHEN opcao = 'NAO' THEN 1 END), 0) AS nao,
         COALESCE(SUM(CASE WHEN opcao = 'ABSTENCAO' THEN 1 END), 0) AS abstencao
       FROM votos
-      WHERE materia_id = 2
+      WHERE materia_id = 1
     `);
 
     res.json(result.rows[0]);
@@ -58,74 +74,61 @@ app.get('/resultado', async (req, res) => {
   }
 });
 
-// ABRIR VOTAÇÃO
-app.post('/abrir', async (req, res) => {
-  await pool.query("UPDATE materias SET status='ABERTA' WHERE id=2");
-  res.json({ ok: true });
-});
-
-// ENCERRAR VOTAÇÃO
-app.post('/encerrar', async (req, res) => {
-  await pool.query("UPDATE materias SET status='FECHADA' WHERE id=2");
-  res.json({ ok: true });
-});
-const PDFDocument = require('pdfkit');
-
-app.get('/relatorio', async (req, res) => {
+// CRIAR TABELAS AUTOMATICAMENTE
+async function inicializarBanco() {
   try {
-    const result = await pool.query(`
-      SELECT
-        COALESCE(SUM(CASE WHEN opcao = 'SIM' THEN 1 END), 0) AS sim,
-        COALESCE(SUM(CASE WHEN opcao = 'NAO' THEN 1 END), 0) AS nao,
-        COALESCE(SUM(CASE WHEN opcao = 'ABSTENCAO' THEN 1 END), 0) AS abstencao
-      FROM votos
-      WHERE materia_id = 2
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS usuarios (
+        id SERIAL PRIMARY KEY,
+        nome TEXT,
+        login TEXT UNIQUE,
+        senha_hash TEXT,
+        perfil TEXT,
+        status BOOLEAN DEFAULT true,
+        criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
     `);
 
-    const { sim, nao, abstencao } = result.rows[0];
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS materias (
+        id SERIAL PRIMARY KEY,
+        titulo TEXT,
+        status TEXT DEFAULT 'ABERTA'
+      );
+    `);
 
-    const doc = new PDFDocument();
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS votos (
+        id SERIAL PRIMARY KEY,
+        vereador_id INTEGER REFERENCES usuarios(id),
+        materia_id INTEGER REFERENCES materias(id),
+        opcao TEXT,
+        UNIQUE (vereador_id, materia_id)
+      );
+    `);
 
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', 'inline; filename=relatorio.pdf');
+    await pool.query(`
+      INSERT INTO usuarios (nome, login, senha_hash, perfil)
+      VALUES ('Vereador 1', 'ver1', '123', 'vereador')
+      ON CONFLICT (login) DO NOTHING;
+    `);
 
-    doc.pipe(res);
+    await pool.query(`
+      INSERT INTO materias (titulo, status)
+      VALUES ('Projeto de Teste', 'ABERTA')
+      ON CONFLICT DO NOTHING;
+    `);
 
-    doc.fontSize(18).text('CÂMARA MUNICIPAL DE SANTO ANTÔNIO DO TAUÁ', { align: 'center' });
-    doc.moveDown();
-    doc.fontSize(14).text('Relatório de Resultado da Votação', { align: 'center' });
-
-    doc.moveDown();
-    doc.text(`SIM: ${sim}`);
-    doc.text(`NÃO: ${nao}`);
-    doc.text(`ABSTENÇÃO: ${abstencao}`);
-
-    doc.end();
+    console.log('Banco inicializado');
   } catch (err) {
-    res.status(500).json({ erro: 'Erro ao gerar relatório' });
+    console.error('Erro ao inicializar banco:', err);
   }
-});
-app.post('/login', async (req, res) => {
-  const { login, senha } = req.body;
+}
 
-  try {
-    const result = await pool.query(
-      'SELECT * FROM usuarios WHERE login = $1 AND senha_hash = $2',
-      [login, senha]
-    );
-
-    if (result.rows.length === 0) {
-      return res.status(401).json({ erro: 'Login inválido' });
-    }
-
-    res.json({ usuario: result.rows[0] });
-  } catch (err) {
-    res.status(500).json({ erro: 'Erro no servidor' });
-  }
-});
+inicializarBanco();
 
 const PORT = process.env.PORT || 3000;
+
 app.listen(PORT, () => {
   console.log('Servidor rodando na porta', PORT);
 });
-
