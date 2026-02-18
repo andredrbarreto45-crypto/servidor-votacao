@@ -78,6 +78,20 @@ app.get('/resultado', async (req, res) => {
     res.status(500).json({ erro: 'Erro ao buscar resultado' });
   }
 });
+// CRIAR PRESIDENTE (temporário)
+app.get('/criar-presidente', async (req, res) => {
+  try {
+    await pool.query(`
+      INSERT INTO usuarios (nome, login, senha_hash, perfil)
+      VALUES ('Presidente da Câmara', 'presidente', '123', 'presidente')
+      ON CONFLICT (login) DO NOTHING;
+    `);
+
+    res.send('Presidente criado');
+  } catch (err) {
+    res.status(500).json({ erro: 'Erro ao criar presidente' });
+  }
+});
 
 // PORTA RENDER
 const PORT = process.env.PORT || 3000;
