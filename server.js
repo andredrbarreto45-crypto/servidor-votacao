@@ -24,7 +24,6 @@ app.get('/usuarios', async (req, res) => {
   }
 });
 
-
 // LOGIN
 app.post('/login', async (req, res) => {
   const { login, senha } = req.body;
@@ -41,6 +40,7 @@ app.post('/login', async (req, res) => {
 
     res.json({ usuario: result.rows[0] });
   } catch (err) {
+    console.error(err);
     res.status(500).json({ erro: 'Erro no servidor' });
   }
 });
@@ -79,7 +79,7 @@ app.get('/resultado', async (req, res) => {
   }
 });
 
-// PORTA DO RENDER
+// PORTA RENDER
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
