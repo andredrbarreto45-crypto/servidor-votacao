@@ -9,16 +9,7 @@ app.use(express.json());
 app.get('/', (req, res) => {
   res.send('API da Camara funcionando');
 });
-app.get('/usuarios', async (req, res) => {
-  try {
-    const result = await pool.query(
-      'SELECT id, nome, login FROM usuarios ORDER BY id'
-    );
-    res.json(result.rows);
-  } catch (err) {
-    res.status(500).json({ erro: 'Erro ao buscar usuários' });
-  }
-});
+
 // LOGIN
 app.post('/login', async (req, res) => {
   const { login, senha } = req.body;
@@ -83,7 +74,7 @@ app.get('/resultado', async (req, res) => {
   }
 });
 
-// CRIAR TABELAS AUTOMATICAMENTE
+// CRIAR TABELAS
 async function inicializarBanco() {
   try {
     await pool.query(`
