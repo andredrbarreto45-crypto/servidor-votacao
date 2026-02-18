@@ -95,6 +95,20 @@ app.get('/criar-presidente', async (req, res) => {
 
 // PORTA RENDER
 const PORT = process.env.PORT || 3000;
+// ESTADO DA VOTAÇÃO
+let votacaoAberta = false;
+
+// ABRIR VOTAÇÃO
+app.post('/abrir-votacao', (req, res) => {
+  votacaoAberta = true;
+  res.json({ mensagem: 'Votação aberta' });
+});
+
+// ENCERRAR VOTAÇÃO
+app.post('/encerrar-votacao', (req, res) => {
+  votacaoAberta = false;
+  res.json({ mensagem: 'Votação encerrada' });
+});
 
 app.listen(PORT, () => {
   console.log('Servidor rodando na porta', PORT);
