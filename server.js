@@ -9,7 +9,17 @@ app.use(express.json());
 app.get('/', (req, res) => {
   res.send('API da Camara funcionando');
 });
-
+app.get('/usuarios', async (req, res) => {
+  try {
+    const result = await pool.query(
+      'SELECT id, nome, login, perfil FROM usuarios ORDER BY id'
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ erro: 'Erro ao buscar usuários' });
+  }
+});
 // LOGIN
 app.post('/login', async (req, res) => {
   const { login, senha } = req.body;
@@ -132,3 +142,4 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log('Servidor rodando na porta', PORT);
 });
+
