@@ -14,12 +14,16 @@ app.get('/', (req, res) => {
 // LISTAR USUÁRIOS
 app.get('/usuarios', async (req, res) => {
   try {
-    const result = await pool.query('SELECT id, nome, login, perfil FROM usuarios');
+    const result = await pool.query(
+      'SELECT id, nome, login, perfil FROM usuarios ORDER BY id'
+    );
     res.json(result.rows);
   } catch (err) {
+    console.error(err);
     res.status(500).json({ erro: 'Erro ao buscar usuários' });
   }
 });
+
 
 // LOGIN
 app.post('/login', async (req, res) => {
