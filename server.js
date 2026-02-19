@@ -16,21 +16,12 @@ app.use(express.json());
 
 let votacaoAberta = false;
 
+// ROTA PRINCIPAL
 app.get('/', (req, res) => {
   res.send('API da Camara funcionando');
 });
 
-app.get('/usuarios', async (req, res) => {
-  try {
-    const result = await pool.query(
-      'SELECT id, nome, login, perfil FROM usuarios ORDER BY id'
-    );
-    res.json(result.rows);
-  } catch {
-    res.status(500).json({ erro: 'Erro ao buscar usuários' });
-  }
-});
-
+// LOGIN SEGURO
 app.post('/login', async (req, res) => {
   const { login, senha } = req.body;
 
@@ -52,11 +43,12 @@ app.post('/login', async (req, res) => {
     }
 
     res.json({ id: usuario.id, nome: usuario.nome, perfil: usuario.perfil });
-  } catch {
+  } catch (err) {
     res.status(500).json({ erro: 'Erro no servidor' });
   }
 });
 
+// ATUALIZAR/CRIAR PRESIDENTE
 app.get('/criar-presidente', async (req, res) => {
   try {
     const hash = await bcrypt.hash('123', 10);
@@ -74,19 +66,8 @@ app.get('/criar-presidente', async (req, res) => {
     res.status(500).json({ erro: 'Erro ao criar presidente' });
   }
 });
-    await pool.query(
-      `INSERT INTO usuarios (nome, login, senha_hash, perfil)
-       VALUES ('Presidente da Câmara', 'presidente', $1, 'presidente')
-       ON CONFLICT (login) DO NOTHING`,
-      [hash]
-    );
 
-    res.send('Presidente criado com senha criptografada');
-  } catch {
-    res.status(500).json({ erro: 'Erro ao criar presidente' });
-  }
-});
-
+// CONTROLE DE VOTAÇÃO
 app.post('/abrir-votacao', (req, res) => {
   votacaoAberta = true;
   res.json({ mensagem: 'Votação aberta' });
@@ -97,6 +78,7 @@ app.post('/encerrar-votacao', (req, res) => {
   res.json({ mensagem: 'Votação encerrada' });
 });
 
+// REGISTRAR VOTO
 app.post('/votar', async (req, res) => {
   if (!votacaoAberta) {
     return res.status(403).json({ erro: 'Votação encerrada' });
@@ -111,11 +93,12 @@ app.post('/votar', async (req, res) => {
     );
 
     res.json({ sucesso: true });
-  } catch {
+  } catch (err) {
     res.status(400).json({ erro: 'Voto já registrado ou inválido' });
   }
 });
 
+// RESULTADO
 app.get('/resultado', async (req, res) => {
   try {
     const result = await pool.query(`
@@ -128,11 +111,12 @@ app.get('/resultado', async (req, res) => {
     `);
 
     res.json(result.rows[0]);
-  } catch {
+  } catch (err) {
     res.status(500).json({ erro: 'Erro ao buscar resultado' });
   }
 });
 
+// ATA PDF
 app.get('/ata', async (req, res) => {
   try {
     const result = await pool.query(`
@@ -163,13 +147,11 @@ app.get('/ata', async (req, res) => {
     doc.text('Nada mais havendo a tratar, foi encerrada a presente votação.');
 
     doc.end();
-  } catch {
+  } catch (err) {
     res.status(500).json({ erro: 'Erro ao gerar ata' });
   }
 });
 
+// PORTA
 const PORT = process.env.PORT || 3000;
-
-app.listen(PORT, () => {
-  console.log('Servidor rodando na porta', PORT);
-});
+app.listen(PORT, () => console.log('Servidor rodando na porta', PORT));
