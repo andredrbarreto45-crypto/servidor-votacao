@@ -275,6 +275,35 @@ app.get('/marcar-presenca-teste', async (req, res) => {
     res.status(500).json({ erro: 'Erro ao marcar presença' });
   }
 });
+// CRIAR MATÉRIA NA SESSÃO ATUAL (TESTE)
+app.get('/criar-materia-teste', async (req, res) => {
+  try {
+    // pegar sessão aberta mais recente
+    const sessao = await pool.query(`
+      SELECT id FROM sessoes
+      WHERE aberta = true
+      ORDER BY id DESC
+      LIMIT 1
+    `);
+
+    if (sessao.rows.length === 0) {
+      return res.status(400).json({ erro: 'Nenhuma sessão aberta' });
+    }
+
+    const sessaoId = sessao.rows[0].id;
+
+    // criar matéria de teste
+    const materia = await pool.query(`
+      INSERT INTO materias (sessao_id, numero, titulo)
+      VALUES ($1, '001/2026', 'Projeto de Lei de Teste')
+      RETURNING *
+    `, [sessaoId]);
+
+    res.json(materia.rows[0]);
+  } catch {
+    res.status(500).json({ erro: 'Erro ao criar matéria' });
+  }
+});
 
 // PORTA
 const PORT = process.env.PORT || 3000;
