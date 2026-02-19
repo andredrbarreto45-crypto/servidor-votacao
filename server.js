@@ -2,13 +2,20 @@ const express = require('express');
 const cors = require('cors');
 const pool = require('./db');
 const bcrypt = require('bcrypt');
+const PDFDocument = require('pdfkit');
+
 const app = express();
+
 app.use(cors({
   origin: '*',
   methods: ['GET', 'POST'],
   allowedHeaders: ['Content-Type']
 }));
+
 app.use(express.json());
+
+// ESTADO DA VOTAÇÃO
+let votacaoAberta = false;
 
 // ROTA PRINCIPAL
 app.get('/', (req, res) => {
@@ -23,12 +30,11 @@ app.get('/usuarios', async (req, res) => {
     );
     res.json(result.rows);
   } catch (err) {
-    console.error(err);
     res.status(500).json({ erro: 'Erro ao buscar usuários' });
   }
 });
 
-// LOGIN
+// LOGIN SEGURO
 app.post('/login', async (req, res) => {
   const { login, senha } = req.body;
 
@@ -43,7 +49,6 @@ app.post('/login', async (req, res) => {
     }
 
     const usuario = result.rows[0];
-
     const senhaValida = await bcrypt.compare(senha, usuario.senha_hash);
 
     if (!senhaValida) {
@@ -59,23 +64,44 @@ app.post('/login', async (req, res) => {
     res.status(500).json({ erro: 'Erro no servidor' });
   }
 });
-    if (result.rows.length === 0) {
-      return res.status(401).json({ erro: 'Login inválido' });
-    }
 
-    res.json({ usuario: result.rows[0] });
+// CRIAR PRESIDENTE COM SENHA CRIPTOGRAFADA
+app.get('/criar-presidente', async (req, res) => {
+  try {
+    const hash = await bcrypt.hash('123', 10);
+
+    await pool.query(
+      `INSERT INTO usuarios (nome, login, senha_hash, perfil)
+       VALUES ('Presidente da Câmara', 'presidente', $1, 'presidente')
+       ON CONFLICT (login) DO NOTHING`,
+      [hash]
+    );
+
+    res.send('Presidente criado com senha criptografada');
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ erro: 'Erro no servidor' });
+    res.status(500).json({ erro: 'Erro ao criar presidente' });
   }
+});
+
+// ABRIR VOTAÇÃO
+app.post('/abrir-votacao', (req, res) => {
+  votacaoAberta = true;
+  res.json({ mensagem: 'Votação aberta' });
+});
+
+// ENCERRAR VOTAÇÃO
+app.post('/encerrar-votacao', (req, res) => {
+  votacaoAberta = false;
+  res.json({ mensagem: 'Votação encerrada' });
 });
 
 // VOTAR
 app.post('/votar', async (req, res) => {
+  if (!votacaoAberta) {
+    return res.status(403).json({ erro: 'Votação encerrada' });
+  }
+
   const { vereador_id, materia_id, opcao } = req.body;
-if (!votacaoAberta) {
-  return res.status(403).json({ erro: 'Votação encerrada' });
-}
 
   try {
     await pool.query(
@@ -106,46 +132,6 @@ app.get('/resultado', async (req, res) => {
     res.status(500).json({ erro: 'Erro ao buscar resultado' });
   }
 });
-// CRIAR PRESIDENTE COM SENHA SEGURA
-app.get('/criar-presidente', async (req, res) => {
-  try {
-    const hash = await bcrypt.hash('123', 10);
-
-    await pool.query(
-      `INSERT INTO usuarios (nome, login, senha_hash, perfil)
-       VALUES ('Presidente da Câmara', 'presidente', $1, 'presidente')
-       ON CONFLICT (login) DO NOTHING`,
-      [hash]
-    );
-
-    res.send('Presidente criado com senha criptografada');
-  } catch (err) {
-    res.status(500).json({ erro: 'Erro ao criar presidente' });
-  }
-});
-
-const PORT = process.env.PORT || 3000;
-
-app.listen(PORT, () => {
-  console.log('Servidor rodando na porta', PORT);
-});
-// PORTA RENDER
-const PORT = process.env.PORT || 3000;
-// ESTADO DA VOTAÇÃO
-let votacaoAberta = false;
-
-// ABRIR VOTAÇÃO
-app.post('/abrir-votacao', (req, res) => {
-  votacaoAberta = true;
-  res.json({ mensagem: 'Votação aberta' });
-});
-
-// ENCERRAR VOTAÇÃO
-app.post('/encerrar-votacao', (req, res) => {
-  votacaoAberta = false;
-  res.json({ mensagem: 'Votação encerrada' });
-});
-const PDFDocument = require('pdfkit');
 
 // GERAR ATA EM PDF
 app.get('/ata', async (req, res) => {
@@ -167,19 +153,13 @@ app.get('/ata', async (req, res) => {
     const doc = new PDFDocument();
     doc.pipe(res);
 
-    doc.fontSize(16).text('CÂMARA MUNICIPAL - ATA DE VOTAÇÃO', {
-      align: 'center'
-    });
-
+    doc.fontSize(16).text('CÂMARA MUNICIPAL - ATA DE VOTAÇÃO', { align: 'center' });
     doc.moveDown();
     doc.fontSize(12).text(`Data: ${new Date().toLocaleString()}`);
-
     doc.moveDown();
-    doc.text(`Resultado da votação:`);
     doc.text(`SIM: ${sim}`);
     doc.text(`NÃO: ${nao}`);
     doc.text(`ABSTENÇÃO: ${abstencao}`);
-
     doc.moveDown();
     doc.text(
       'Nada mais havendo a tratar, foi encerrada a presente votação, sendo lavrada a presente ata que será assinada pelos membros da Mesa Diretora.',
@@ -191,6 +171,9 @@ app.get('/ata', async (req, res) => {
     res.status(500).json({ erro: 'Erro ao gerar ata' });
   }
 });
+
+// PORTA RENDER
+const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
   console.log('Servidor rodando na porta', PORT);
