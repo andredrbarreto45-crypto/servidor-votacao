@@ -1,7 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const pool = require('./db');
-
+const bcrypt = require('bcrypt');
 const app = express();
 app.use(cors({
   origin: '*',
@@ -34,10 +34,31 @@ app.post('/login', async (req, res) => {
 
   try {
     const result = await pool.query(
-      'SELECT * FROM usuarios WHERE login = $1 AND senha_hash = $2',
-      [login, senha]
+      'SELECT * FROM usuarios WHERE login = $1',
+      [login]
     );
 
+    if (result.rows.length === 0) {
+      return res.status(401).json({ erro: 'Login inválido' });
+    }
+
+    const usuario = result.rows[0];
+
+    const senhaValida = await bcrypt.compare(senha, usuario.senha_hash);
+
+    if (!senhaValida) {
+      return res.status(401).json({ erro: 'Login inválido' });
+    }
+
+    res.json({
+      id: usuario.id,
+      nome: usuario.nome,
+      perfil: usuario.perfil
+    });
+  } catch (err) {
+    res.status(500).json({ erro: 'Erro no servidor' });
+  }
+});
     if (result.rows.length === 0) {
       return res.status(401).json({ erro: 'Login inválido' });
     }
@@ -85,20 +106,24 @@ app.get('/resultado', async (req, res) => {
     res.status(500).json({ erro: 'Erro ao buscar resultado' });
   }
 });
-// CRIAR PRESIDENTE (temporário)
+// CRIAR PRESIDENTE COM SENHA SEGURA
 app.get('/criar-presidente', async (req, res) => {
   try {
-    await pool.query(`
-      INSERT INTO usuarios (nome, login, senha_hash, perfil)
-      VALUES ('Presidente da Câmara', 'presidente', '123', 'presidente')
-      ON CONFLICT (login) DO NOTHING;
-    `);
+    const hash = await bcrypt.hash('123', 10);
 
-    res.send('Presidente criado');
+    await pool.query(
+      `INSERT INTO usuarios (nome, login, senha_hash, perfil)
+       VALUES ('Presidente da Câmara', 'presidente', $1, 'presidente')
+       ON CONFLICT (login) DO NOTHING`,
+      [hash]
+    );
+
+    res.send('Presidente criado com senha criptografada');
   } catch (err) {
     res.status(500).json({ erro: 'Erro ao criar presidente' });
   }
 });
+
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
