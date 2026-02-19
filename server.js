@@ -112,13 +112,15 @@ app.get('/criar-materia-teste', async (req, res) => {
     res.status(500).json({ erro: err.message });
   }
 });
-// RESETAR BANCO LEGISLATIVO (APAGA E RECRIA)
+// RESETAR BANCO LEGISLATIVO (APAGA TUDO E RECRIA)
 app.get('/resetar-banco', async (req, res) => {
   try {
-    await pool.query(`DROP TABLE IF EXISTS presencas`);
-    await pool.query(`DROP TABLE IF EXISTS materias`);
-    await pool.query(`DROP TABLE IF EXISTS sessoes`);
+    // apagar tabelas antigas com dependências
+    await pool.query(`DROP TABLE IF EXISTS presencas CASCADE`);
+    await pool.query(`DROP TABLE IF EXISTS materias CASCADE`);
+    await pool.query(`DROP TABLE IF EXISTS sessoes CASCADE`);
 
+    // recriar tabelas corretas
     await pool.query(`
       CREATE TABLE sessoes (
         id SERIAL PRIMARY KEY,
@@ -127,6 +129,30 @@ app.get('/resetar-banco', async (req, res) => {
         aberta BOOLEAN DEFAULT TRUE
       );
     `);
+
+    await pool.query(`
+      CREATE TABLE materias (
+        id SERIAL PRIMARY KEY,
+        sessao_id INTEGER REFERENCES sessoes(id),
+        numero TEXT,
+        titulo TEXT
+      );
+    `);
+
+    await pool.query(`
+      CREATE TABLE presencas (
+        id SERIAL PRIMARY KEY,
+        vereador_id INTEGER REFERENCES usuarios(id),
+        sessao_id INTEGER REFERENCES sessoes(id),
+        presente BOOLEAN DEFAULT TRUE
+      );
+    `);
+
+    res.send('Banco legislativo resetado com sucesso');
+  } catch (err) {
+    res.status(500).json({ erro: err.message });
+  }
+});
 
     await pool.query(`
       CREATE TABLE materias (
