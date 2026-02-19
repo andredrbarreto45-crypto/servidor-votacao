@@ -6,12 +6,7 @@ const PDFDocument = require('pdfkit');
 
 const app = express();
 
-app.use(cors({
-  origin: '*',
-  methods: ['GET', 'POST'],
-  allowedHeaders: ['Content-Type']
-}));
-
+app.use(cors({ origin: '*', methods: ['GET', 'POST'], allowedHeaders: ['Content-Type'] }));
 app.use(express.json());
 
 let votacaoAberta = false;
@@ -21,49 +16,97 @@ app.get('/', (req, res) => {
   res.send('API da Camara funcionando');
 });
 
-// LOGIN SEGURO
+// LOGIN
 app.post('/login', async (req, res) => {
   const { login, senha } = req.body;
 
   try {
-    const result = await pool.query(
-      'SELECT * FROM usuarios WHERE login = $1',
-      [login]
-    );
+    const result = await pool.query('SELECT * FROM usuarios WHERE login = $1', [login]);
 
-    if (result.rows.length === 0) {
-      return res.status(401).json({ erro: 'Login inválido' });
-    }
+    if (result.rows.length === 0) return res.status(401).json({ erro: 'Login inválido' });
 
     const usuario = result.rows[0];
     const senhaValida = await bcrypt.compare(senha, usuario.senha_hash);
 
-    if (!senhaValida) {
-      return res.status(401).json({ erro: 'Login inválido' });
-    }
+    if (!senhaValida) return res.status(401).json({ erro: 'Login inválido' });
 
     res.json({ id: usuario.id, nome: usuario.nome, perfil: usuario.perfil });
-  } catch (err) {
+  } catch {
     res.status(500).json({ erro: 'Erro no servidor' });
   }
 });
 
-// ATUALIZAR/CRIAR PRESIDENTE
+// CRIAR PRESIDENTE
 app.get('/criar-presidente', async (req, res) => {
   try {
     const hash = await bcrypt.hash('123', 10);
 
-    await pool.query(
-      `INSERT INTO usuarios (nome, login, senha_hash, perfil)
-       VALUES ('Presidente da Câmara', 'presidente', $1, 'presidente')
-       ON CONFLICT (login)
-       DO UPDATE SET senha_hash = EXCLUDED.senha_hash`,
-      [hash]
-    );
+    await pool.query(`
+      INSERT INTO usuarios (nome, login, senha_hash, perfil)
+      VALUES ('Presidente da Câmara', 'presidente', $1, 'presidente')
+      ON CONFLICT (login)
+      DO UPDATE SET senha_hash = EXCLUDED.senha_hash
+    `, [hash]);
 
     res.send('Senha do presidente atualizada com criptografia');
-  } catch (err) {
+  } catch {
     res.status(500).json({ erro: 'Erro ao criar presidente' });
+  }
+});
+
+// CRIAR 11 VEREADORES
+app.get('/criar-vereadores', async (req, res) => {
+  try {
+    for (let i = 1; i <= 11; i++) {
+      const hash = await bcrypt.hash('123', 10);
+
+      await pool.query(`
+        INSERT INTO usuarios (nome, login, senha_hash, perfil)
+        VALUES ($1, $2, $3, 'vereador')
+        ON CONFLICT (login)
+        DO UPDATE SET senha_hash = EXCLUDED.senha_hash
+      `, [`Vereador ${i}`, `ver${i}`, hash]);
+    }
+
+    res.send('11 vereadores criados/atualizados com sucesso');
+  } catch {
+    res.status(500).json({ erro: 'Erro ao criar vereadores' });
+  }
+});
+
+// CRIAR TABELAS LEGISLATIVAS
+app.get('/criar-tabelas', async (req, res) => {
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS sessoes (
+        id SERIAL PRIMARY KEY,
+        data TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        descricao TEXT,
+        aberta BOOLEAN DEFAULT TRUE
+      );
+    `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS materias (
+        id SERIAL PRIMARY KEY,
+        sessao_id INTEGER REFERENCES sessoes(id),
+        numero TEXT,
+        titulo TEXT
+      );
+    `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS presencas (
+        id SERIAL PRIMARY KEY,
+        vereador_id INTEGER REFERENCES usuarios(id),
+        sessao_id INTEGER REFERENCES sessoes(id),
+        presente BOOLEAN DEFAULT TRUE
+      );
+    `);
+
+    res.send('Tabelas criadas com sucesso');
+  } catch {
+    res.status(500).json({ erro: 'Erro ao criar tabelas' });
   }
 });
 
@@ -78,11 +121,9 @@ app.post('/encerrar-votacao', (req, res) => {
   res.json({ mensagem: 'Votação encerrada' });
 });
 
-// REGISTRAR VOTO
+// VOTAR
 app.post('/votar', async (req, res) => {
-  if (!votacaoAberta) {
-    return res.status(403).json({ erro: 'Votação encerrada' });
-  }
+  if (!votacaoAberta) return res.status(403).json({ erro: 'Votação encerrada' });
 
   const { vereador_id, materia_id, opcao } = req.body;
 
@@ -93,12 +134,12 @@ app.post('/votar', async (req, res) => {
     );
 
     res.json({ sucesso: true });
-  } catch (err) {
+  } catch {
     res.status(400).json({ erro: 'Voto já registrado ou inválido' });
   }
 });
 
-// RESULTADO
+// RESULTADO TOTAL
 app.get('/resultado', async (req, res) => {
   try {
     const result = await pool.query(`
@@ -111,8 +152,25 @@ app.get('/resultado', async (req, res) => {
     `);
 
     res.json(result.rows[0]);
-  } catch (err) {
+  } catch {
     res.status(500).json({ erro: 'Erro ao buscar resultado' });
+  }
+});
+
+// RESULTADO DETALHADO
+app.get('/resultado-detalhado', async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT u.id AS vereador_id, u.nome, v.opcao
+      FROM usuarios u
+      LEFT JOIN votos v ON v.vereador_id = u.id AND v.materia_id = 1
+      WHERE u.perfil = 'vereador'
+      ORDER BY u.id
+    `);
+
+    res.json(result.rows);
+  } catch {
+    res.status(500).json({ erro: 'Erro ao buscar resultado detalhado' });
   }
 });
 
@@ -147,84 +205,10 @@ app.get('/ata', async (req, res) => {
     doc.text('Nada mais havendo a tratar, foi encerrada a presente votação.');
 
     doc.end();
-  } catch (err) {
+  } catch {
     res.status(500).json({ erro: 'Erro ao gerar ata' });
   }
 });
-// CRIAR 11 VEREADORES AUTOMATICAMENTE
-app.get('/criar-vereadores', async (req, res) => {
-  try {
-    for (let i = 1; i <= 11; i++) {
-      const hash = await bcrypt.hash('123', 10);
-
-      await pool.query(
-        `INSERT INTO usuarios (nome, login, senha_hash, perfil)
-         VALUES ($1, $2, $3, 'vereador')
-         ON CONFLICT (login)
-         DO UPDATE SET senha_hash = EXCLUDED.senha_hash`,
-        [`Vereador ${i}`, `ver${i}`, hash]
-      );
-    }
-
-    res.send('11 vereadores criados/atualizados com sucesso');
-  } catch (err) {
-    res.status(500).json({ erro: 'Erro ao criar vereadores' });
-  }
-});
-// CRIAR 11 VEREADORES AUTOMATICAMENTE
-app.get('/criar-vereadores', async (req, res) => {
-  try {
-    for (let i = 1; i <= 11; i++) {
-      const hash = await bcrypt.hash('123', 10);
-
-      await pool.query(
-        `INSERT INTO usuarios (nome, login, senha_hash, perfil)
-         VALUES ($1, $2, $3, 'vereador')
-         ON CONFLICT (login)
-         DO UPDATE SET senha_hash = EXCLUDED.senha_hash`,
-        [`Vereador ${i}`, `ver${i}`, hash]
-      );
-    }
-
-    res.send('11 vereadores criados/atualizados com sucesso');
-  } catch (err) {
-    res.status(500).json({ erro: 'Erro ao criar vereadores' });
-  }
-});
-// RESULTADO DETALHADO POR VEREADOR
-app.get('/resultado-detalhado', async (req, res) => {
-  try {
-    const result = await pool.query(`
-      SELECT
-        u.id AS vereador_id,
-        u.nome,
-        v.opcao
-      FROM usuarios u
-      LEFT JOIN votos v
-        ON v.vereador_id = u.id
-        AND v.materia_id = 1
-      WHERE u.perfil = 'vereador'
-      ORDER BY u.id
-    `);
-
-    res.json(result.rows);
-  } catch (err) {
-    res.status(500).json({ erro: 'Erro ao buscar resultado detalhado' });
-  }
-});
-// CRIAR TABELAS DO SISTEMA LEGISLATIVO
-app.get('/criar-tabelas', async (req, res) => {
-  try {
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS sessoes (
-        id SERIAL PRIMARY KEY,
-        data TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        descricao TEXT,
-        aberta BOOLEAN DEFAULT TRUE
-      );
-    `);
-
-    await pool.query(`
 
 // PORTA
 const PORT = process.env.PORT || 3000;
