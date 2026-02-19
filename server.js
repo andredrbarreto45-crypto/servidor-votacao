@@ -64,6 +64,19 @@ app.get('/criar-presidente', async (req, res) => {
     await pool.query(
       `INSERT INTO usuarios (nome, login, senha_hash, perfil)
        VALUES ('Presidente da Câmara', 'presidente', $1, 'presidente')
+       ON CONFLICT (login)
+       DO UPDATE SET senha_hash = EXCLUDED.senha_hash`,
+      [hash]
+    );
+
+    res.send('Senha do presidente atualizada com criptografia');
+  } catch (err) {
+    res.status(500).json({ erro: 'Erro ao criar presidente' });
+  }
+});
+    await pool.query(
+      `INSERT INTO usuarios (nome, login, senha_hash, perfil)
+       VALUES ('Presidente da Câmara', 'presidente', $1, 'presidente')
        ON CONFLICT (login) DO NOTHING`,
       [hash]
     );
