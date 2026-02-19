@@ -144,6 +144,35 @@ app.post('/votar-materia-atual', async (req, res) => {
     res.status(500).json({ erro: err.message });
   }
 });
+// TESTE: VOTO DO VEREADOR 1 = SIM
+app.get('/teste-voto-vereador1', async (req, res) => {
+  try {
+    // pegar última matéria da sessão aberta
+    const materia = await pool.query(`
+      SELECT m.id
+      FROM materias m
+      JOIN sessoes s ON s.id = m.sessao_id
+      WHERE s.aberta = true
+      ORDER BY m.id DESC
+      LIMIT 1
+    `);
+
+    if (!materia.rows.length)
+      return res.status(400).json({ erro: 'Nenhuma matéria ativa' });
+
+    await pool.query(
+      `INSERT INTO votos (vereador_id, materia_id, opcao)
+       VALUES (1, $1, 'SIM')
+       ON CONFLICT (vereador_id, materia_id)
+       DO UPDATE SET opcao = EXCLUDED.opcao`,
+      [materia.rows[0].id]
+    );
+
+    res.json({ mensagem: 'Voto SIM do Vereador 1 registrado' });
+  } catch (err) {
+    res.status(500).json({ erro: err.message });
+  }
+});
 
 /* ================= PORTA ================= */
 
