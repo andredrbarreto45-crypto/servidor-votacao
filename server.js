@@ -209,6 +209,23 @@ app.get('/ata', async (req, res) => {
     res.status(500).json({ erro: 'Erro ao gerar ata' });
   }
 });
+// ABRIR NOVA SESSÃO
+app.post('/abrir-sessao', async (req, res) => {
+  const { descricao } = req.body;
+
+  try {
+    const result = await pool.query(
+      `INSERT INTO sessoes (descricao, aberta)
+       VALUES ($1, true)
+       RETURNING *`,
+      [descricao]
+    );
+
+    res.json(result.rows[0]);
+  } catch {
+    res.status(500).json({ erro: 'Erro ao abrir sessão' });
+  }
+});
 
 // PORTA
 const PORT = process.env.PORT || 3000;
