@@ -240,6 +240,41 @@ app.get('/abrir-sessao-teste', async (req, res) => {
     res.status(500).json({ erro: 'Erro ao abrir sessão' });
   }
 });
+// MARCAR PRESENÇA NA SESSÃO ATUAL
+app.get('/marcar-presenca-teste', async (req, res) => {
+  try {
+    // pegar sessão aberta mais recente
+    const sessao = await pool.query(`
+      SELECT id FROM sessoes
+      WHERE aberta = true
+      ORDER BY id DESC
+      LIMIT 1
+    `);
+
+    if (sessao.rows.length === 0) {
+      return res.status(400).json({ erro: 'Nenhuma sessão aberta' });
+    }
+
+    const sessaoId = sessao.rows[0].id;
+
+    // marcar presença para todos vereadores
+    const vereadores = await pool.query(`
+      SELECT id FROM usuarios WHERE perfil = 'vereador'
+    `);
+
+    for (const v of vereadores.rows) {
+      await pool.query(`
+        INSERT INTO presencas (vereador_id, sessao_id, presente)
+        VALUES ($1, $2, true)
+        ON CONFLICT DO NOTHING
+      `, [v.id, sessaoId]);
+    }
+
+    res.json({ mensagem: 'Presença registrada para todos vereadores' });
+  } catch {
+    res.status(500).json({ erro: 'Erro ao marcar presença' });
+  }
+});
 
 // PORTA
 const PORT = process.env.PORT || 3000;
