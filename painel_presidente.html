@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Painel do Presidente</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #0f172a, #1e293b);
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+    }
+
+    .container {
+      background: rgba(30, 41, 59, 0.95);
+      padding: 40px;
+      border-radius: 20px;
+      width: 380px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+      text-align: center;
+      backdrop-filter: blur(10px);
+    }
+
+    h1 {
+      margin-bottom: 25px;
+      font-size: 26px;
+      letter-spacing: 1px;
+    }
+
+    button {
+      width: 100%;
+      padding: 14px;
+      margin: 10px 0;
+      border: none;
+      border-radius: 12px;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: all 0.25s ease;
+    }
+
+    button:hover {
+      transform: translateY(-2px) scale(1.02);
+      box-shadow: 0 8px 18px rgba(0,0,0,0.4);
+    }
+
+    .abrir { background: #22c55e; }
+    .encerrar { background: #ef4444; }
+    .resultado { background: #3b82f6; }
+    .ata { background: #f59e0b; }
+
+    .resultado-box {
+      margin-top: 18px;
+      background: #020617;
+      padding: 15px;
+      border-radius: 12px;
+      font-size: 16px;
+      display: none;
+      line-height: 1.6;
+    }
+
+    footer {
+      margin-top: 20px;
+      font-size: 12px;
+      opacity: 0.6;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>⚖️ Painel do Presidente</h1>
+
+    <button class="abrir" onclick="abrirVotacao()">Abrir votação</button>
+    <button class="encerrar" onclick="encerrarVotacao()">Encerrar votação</button>
+    <button class="resultado" onclick="verResultado()">Ver resultado</button>
+    <button class="ata" onclick="gerarAta()">Gerar ata em PDF</button>
+
+    <div id="resultado" class="resultado-box"></div>
+
+    <footer>
+      Sistema de Votação Legislativa • v1.0
+    </footer>
+  </div>
+
+  <script>
+    const API = "https://servidor-votacao.onrender.com";
+
+    async function abrirVotacao() {
+      await fetch(`${API}/abrir-votacao`, { method: "POST" });
+      alert("Votação aberta com sucesso");
+    }
+
+    async function encerrarVotacao() {
+      await fetch(`${API}/encerrar-votacao`, { method: "POST" });
+      alert("Votação encerrada com sucesso");
+    }
+
+    async function verResultado() {
+      const res = await fetch(`${API}/resultado`);
+      const data = await res.json();
+
+      const box = document.getElementById("resultado");
+      box.style.display = "block";
+      box.innerHTML = `
+        <b>SIM:</b> ${data.sim}<br>
+        <b>NÃO:</b> ${data.nao}<br>
+        <b>ABSTENÇÃO:</b> ${data.abstencao}
+      `;
+    }
+
+    function gerarAta() {
+      window.open(`${API}/ata`, "_blank");
+    }
+  </script>
+</body>
+</html>

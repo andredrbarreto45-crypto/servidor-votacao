@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Painel</title>
+</head>
+<body style="background:#111;color:white;text-align:center;font-family:Arial">
+
+<h1>Painel do Presidente</h1>
+
+<button onclick="abrir()">Abrir votação</button><br><br>
+<button onclick="encerrar()">Encerrar votação</button><br><br>
+<button onclick="resultado()">Ver resultado</button>
+
+<script>
+const API = "https://servidor-votacao.onrender.com";
+
+async function abrir(){
+  await fetch(API + "/abrir-votacao",{method:"POST"});
+  alert("Votação aberta com sucesso");
+}
+
+async function encerrar(){
+  await fetch(API + "/encerrar-votacao",{method:"POST"});
+  alert("Votação encerrada com sucesso");
+}
+
+async function resultado(){
+  const r = await fetch(API + "/resultado");
+  const d = await r.json();
+  alert("SIM: "+d.sim+" | NÃO: "+d.nao+" | ABS: "+d.abstencao);
+}
+</script>
+
+</body>
+</html>

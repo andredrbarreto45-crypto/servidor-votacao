@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Login do Vereador</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #0f172a;
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+    }
+
+    .card {
+      background: #1e293b;
+      padding: 40px;
+      border-radius: 16px;
+      width: 320px;
+      text-align: center;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+    }
+
+    h1 {
+      margin-bottom: 20px;
+    }
+
+    input {
+      width: 100%;
+      padding: 12px;
+      margin: 8px 0;
+      border-radius: 8px;
+      border: none;
+      font-size: 16px;
+    }
+
+    button {
+      width: 100%;
+      padding: 12px;
+      margin-top: 12px;
+      border: none;
+      border-radius: 10px;
+      font-size: 16px;
+      font-weight: bold;
+      background: #22c55e;
+      color: white;
+      cursor: pointer;
+    }
+
+    .erro {
+      color: #f87171;
+      margin-top: 10px;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Login do Vereador</h1>
+
+    <input type="text" id="login" placeholder="Login" />
+    <input type="password" id="senha" placeholder="Senha" />
+
+    <button onclick="entrar()">Entrar</button>
+
+    <div class="erro" id="erro">Login inválido</div>
+  </div>
+
+  <script>
+    const API = "https://servidor-votacao.onrender.com";
+
+    async function entrar() {
+      const login = document.getElementById("login").value;
+      const senha = document.getElementById("senha").value;
+
+      const res = await fetch(API + "/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ login, senha })
+      });
+
+      if (!res.ok) {
+        document.getElementById("erro").style.display = "block";
+        return;
+      }
+
+      const usuario = await res.json();
+
+      // salvar id do vereador
+      localStorage.setItem("vereadorId", usuario.id);
+
+      // ir para tela do plenário
+      window.location.href = "plenario.html";
+    }
+  </script>
+</body>
+</html>
