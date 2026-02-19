@@ -171,6 +171,26 @@ app.get('/criar-vereadores', async (req, res) => {
     res.status(500).json({ erro: 'Erro ao criar vereadores' });
   }
 });
+// CRIAR 11 VEREADORES AUTOMATICAMENTE
+app.get('/criar-vereadores', async (req, res) => {
+  try {
+    for (let i = 1; i <= 11; i++) {
+      const hash = await bcrypt.hash('123', 10);
+
+      await pool.query(
+        `INSERT INTO usuarios (nome, login, senha_hash, perfil)
+         VALUES ($1, $2, $3, 'vereador')
+         ON CONFLICT (login)
+         DO UPDATE SET senha_hash = EXCLUDED.senha_hash`,
+        [`Vereador ${i}`, `ver${i}`, hash]
+      );
+    }
+
+    res.send('11 vereadores criados/atualizados com sucesso');
+  } catch (err) {
+    res.status(500).json({ erro: 'Erro ao criar vereadores' });
+  }
+});
 
 // PORTA
 const PORT = process.env.PORT || 3000;
