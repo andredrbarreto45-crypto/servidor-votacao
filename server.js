@@ -113,6 +113,37 @@ app.get('/criar-materia-teste', async (req, res) => {
     res.status(500).json({ erro: err.message });
   }
 });
+// VOTAR NA ÚLTIMA MATÉRIA DA SESSÃO
+app.post('/votar-materia-atual', async (req, res) => {
+  const { vereador_id, opcao } = req.body;
+
+  try {
+    // pegar última matéria da sessão aberta
+    const materia = await pool.query(`
+      SELECT m.id
+      FROM materias m
+      JOIN sessoes s ON s.id = m.sessao_id
+      WHERE s.aberta = true
+      ORDER BY m.id DESC
+      LIMIT 1
+    `);
+
+    if (!materia.rows.length)
+      return res.status(400).json({ erro: 'Nenhuma matéria ativa' });
+
+    await pool.query(
+      `INSERT INTO votos (vereador_id, materia_id, opcao)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (vereador_id, materia_id)
+       DO UPDATE SET opcao = EXCLUDED.opcao`,
+      [vereador_id, materia.rows[0].id, opcao]
+    );
+
+    res.json({ mensagem: 'Voto registrado com sucesso' });
+  } catch (err) {
+    res.status(500).json({ erro: err.message });
+  }
+});
 
 /* ================= PORTA ================= */
 
