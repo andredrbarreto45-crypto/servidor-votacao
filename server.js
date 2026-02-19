@@ -116,6 +116,52 @@ app.post('/encerrar-votacao', (req, res) => {
   votacaoAberta = false;
   res.json({ mensagem: 'Votação encerrada' });
 });
+const PDFDocument = require('pdfkit');
+
+// GERAR ATA EM PDF
+app.get('/ata', async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT
+        COALESCE(SUM(CASE WHEN opcao = 'SIM' THEN 1 END), 0) AS sim,
+        COALESCE(SUM(CASE WHEN opcao = 'NAO' THEN 1 END), 0) AS nao,
+        COALESCE(SUM(CASE WHEN opcao = 'ABSTENCAO' THEN 1 END), 0) AS abstencao
+      FROM votos
+      WHERE materia_id = 1
+    `);
+
+    const { sim, nao, abstencao } = result.rows[0];
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'inline; filename=ata.pdf');
+
+    const doc = new PDFDocument();
+    doc.pipe(res);
+
+    doc.fontSize(16).text('CÂMARA MUNICIPAL - ATA DE VOTAÇÃO', {
+      align: 'center'
+    });
+
+    doc.moveDown();
+    doc.fontSize(12).text(`Data: ${new Date().toLocaleString()}`);
+
+    doc.moveDown();
+    doc.text(`Resultado da votação:`);
+    doc.text(`SIM: ${sim}`);
+    doc.text(`NÃO: ${nao}`);
+    doc.text(`ABSTENÇÃO: ${abstencao}`);
+
+    doc.moveDown();
+    doc.text(
+      'Nada mais havendo a tratar, foi encerrada a presente votação, sendo lavrada a presente ata que será assinada pelos membros da Mesa Diretora.',
+      { align: 'justify' }
+    );
+
+    doc.end();
+  } catch (err) {
+    res.status(500).json({ erro: 'Erro ao gerar ata' });
+  }
+});
 
 app.listen(PORT, () => {
   console.log('Servidor rodando na porta', PORT);
