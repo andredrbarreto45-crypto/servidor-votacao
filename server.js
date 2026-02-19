@@ -212,6 +212,19 @@ app.get('/resultado-detalhado', async (req, res) => {
     res.status(500).json({ erro: 'Erro ao buscar resultado detalhado' });
   }
 });
+// CRIAR TABELAS DO SISTEMA LEGISLATIVO
+app.get('/criar-tabelas', async (req, res) => {
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS sessoes (
+        id SERIAL PRIMARY KEY,
+        data TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        descricao TEXT,
+        aberta BOOLEAN DEFAULT TRUE
+      );
+    `);
+
+    await pool.query(`
 
 // PORTA
 const PORT = process.env.PORT || 3000;
