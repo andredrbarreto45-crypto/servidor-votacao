@@ -226,6 +226,20 @@ app.post('/abrir-sessao', async (req, res) => {
     res.status(500).json({ erro: 'Erro ao abrir sessão' });
   }
 });
+// ABRIR SESSÃO PELO NAVEGADOR (TEMPORÁRIO)
+app.get('/abrir-sessao-teste', async (req, res) => {
+  try {
+    const result = await pool.query(
+      `INSERT INTO sessoes (descricao, aberta)
+       VALUES ('Sessão de Teste', true)
+       RETURNING *`
+    );
+
+    res.json(result.rows[0]);
+  } catch {
+    res.status(500).json({ erro: 'Erro ao abrir sessão' });
+  }
+});
 
 // PORTA
 const PORT = process.env.PORT || 3000;
