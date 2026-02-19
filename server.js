@@ -3,7 +3,11 @@ const cors = require('cors');
 const pool = require('./db');
 
 const app = express();
-app.use(cors());
+app.use(cors({
+  origin: '*',
+  methods: ['GET', 'POST'],
+  allowedHeaders: ['Content-Type']
+}));
 app.use(express.json());
 
 // ROTA PRINCIPAL
@@ -48,6 +52,9 @@ app.post('/login', async (req, res) => {
 // VOTAR
 app.post('/votar', async (req, res) => {
   const { vereador_id, materia_id, opcao } = req.body;
+if (!votacaoAberta) {
+  return res.status(403).json({ erro: 'Votação encerrada' });
+}
 
   try {
     await pool.query(
