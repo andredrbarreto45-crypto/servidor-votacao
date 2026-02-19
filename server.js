@@ -300,7 +300,12 @@ app.get('/criar-materia-teste', async (req, res) => {
     `, [sessaoId]);
 
     res.json(materia.rows[0]);
-  } catch {
+    } catch (err) {
+    console.error(err); // mostra no log do Render
+    res.status(500).json({ erro: err.message });
+  }
+});
+
     res.status(500).json({ erro: 'Erro ao criar matéria' });
   }
 });
