@@ -191,6 +191,27 @@ app.get('/criar-vereadores', async (req, res) => {
     res.status(500).json({ erro: 'Erro ao criar vereadores' });
   }
 });
+// RESULTADO DETALHADO POR VEREADOR
+app.get('/resultado-detalhado', async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT
+        u.id AS vereador_id,
+        u.nome,
+        v.opcao
+      FROM usuarios u
+      LEFT JOIN votos v
+        ON v.vereador_id = u.id
+        AND v.materia_id = 1
+      WHERE u.perfil = 'vereador'
+      ORDER BY u.id
+    `);
+
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ erro: 'Erro ao buscar resultado detalhado' });
+  }
+});
 
 // PORTA
 const PORT = process.env.PORT || 3000;
