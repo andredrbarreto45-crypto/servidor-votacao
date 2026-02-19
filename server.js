@@ -99,7 +99,11 @@ app.get('/criar-presidente', async (req, res) => {
     res.status(500).json({ erro: 'Erro ao criar presidente' });
   }
 });
+const PORT = process.env.PORT || 3000;
 
+app.listen(PORT, () => {
+  console.log('Servidor rodando na porta', PORT);
+});
 // PORTA RENDER
 const PORT = process.env.PORT || 3000;
 // ESTADO DA VOTAÇÃO
